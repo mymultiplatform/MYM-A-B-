@@ -7,6 +7,7 @@ import torch.optim as optim
 from collections import deque
 import random
 import time
+import datetime
 
 # Use GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -81,7 +82,7 @@ class Agent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-def initialize_mt5(login, password, server):    
+def initialize_mt5(login, password, server):
     """Initialize and connect to MT5."""
     if not mt5.initialize():
         print("initialize() failed")
@@ -124,26 +125,35 @@ def place_order(symbol, order_type):
     }
 
     result = mt5.order_send(request)
-    if result.retcode == mt5.TRADE_RETCODE_DONE:
-        print("Order placed successfully")
-        return result
-    else:
+    if result is None:
+        print(f"Failed to send order: {mt5.last_error()}")
+        return None
+    elif result.retcode != mt5.TRADE_RETCODE_DONE:
         print(f"Failed to place order: {result.retcode}")
         return None
+    else:
+        print("Order placed successfully")
+        return result
 
-def close_order(ticket, order_type):
+def close_order(position_ticket, order_type):
     """Close an open position."""
     symbol = 'BTCUSD'
-    lot_size = 0.1
+    # Retrieve the position volume
+    positions = mt5.positions_get(ticket=position_ticket)
+    if positions is None or len(positions) == 0:
+        print("No position with ticket", position_ticket)
+        return False
+    position_volume = positions[0].volume
+
     price = mt5.symbol_info_tick(symbol).bid if order_type == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(symbol).ask
     close_type = mt5.ORDER_TYPE_SELL if order_type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY
 
     request = {
         "action": mt5.TRADE_ACTION_DEAL,
         "symbol": symbol,
-        "volume": lot_size,
+        "volume": position_volume,
         "type": close_type,
-        "position": ticket,
+        "position": position_ticket,
         "price": price,
         "deviation": 10,
         "magic": 234000,
@@ -153,16 +163,19 @@ def close_order(ticket, order_type):
     }
 
     result = mt5.order_send(request)
-    if result.retcode == mt5.TRADE_RETCODE_DONE:
+    if result is None:
+        print(f"Failed to send close order: {mt5.last_error()}")
+        return False
+    elif result.retcode == mt5.TRADE_RETCODE_DONE:
         print("Position closed successfully")
         return True
     else:
         print(f"Failed to close position: {result.retcode}")
         return False
 
-def get_closed_profit(ticket):
+def get_closed_profit(position_ticket):
     """Retrieve the profit from a closed position."""
-    deals = mt5.history_deals_get(ticket=ticket)
+    deals = mt5.history_deals_get(position=position_ticket)
     if deals is None or len(deals) == 0:
         print("No deal history found")
         return 0
@@ -171,9 +184,9 @@ def get_closed_profit(ticket):
 
 def main():
     # Replace with your MT5 login credentials
-    login = '312128713'
-    password = 'Sexo247420@'
-    server = 'XMGlobal-MT5 7'
+    login = 'your_login'
+    password = 'your_password'
+    server = 'your_server'
 
     if not initialize_mt5(login, password, server):
         return
@@ -185,7 +198,7 @@ def main():
     action_size = 3  # Possible actions: hold, buy, sell
     agent = Agent(state_size, action_size)
 
-    position = None          # Current open position
+    position = None          # Current open position ticket
     position_type = None     # Type of the current position (buy/sell)
 
     while True:
@@ -208,8 +221,12 @@ def main():
             if position is None:
                 result = place_order(symbol, mt5.ORDER_TYPE_BUY)
                 if result:
-                    position = result.order
+                    position = result.position
                     position_type = mt5.ORDER_TYPE_BUY
+                    if position == 0:
+                        print("No position opened")
+                        position = None
+                        position_type = None
             elif position_type == mt5.ORDER_TYPE_SELL:
                 # Close sell position
                 success = close_order(position, position_type)
@@ -223,8 +240,12 @@ def main():
             if position is None:
                 result = place_order(symbol, mt5.ORDER_TYPE_SELL)
                 if result:
-                    position = result.order
+                    position = result.position
                     position_type = mt5.ORDER_TYPE_SELL
+                    if position == 0:
+                        print("No position opened")
+                        position = None
+                        position_type = None
             elif position_type == mt5.ORDER_TYPE_BUY:
                 # Close buy position
                 success = close_order(position, position_type)
@@ -264,9 +285,6 @@ def main():
 
         # Train the agent
         agent.replay()
-
-        # Save the model periodically (optional)
-        # torch.save(agent.model.state_dict(), 'dqn_model.pth')
 
         # Update the state
         state = next_state
