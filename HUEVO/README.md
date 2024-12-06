@@ -13,6 +13,8 @@
 
 You could approximate entropy-based exploration by maintaining a softmax over Q-values when selecting actions. Instead of argmax(Q), sample actions from a distribution π(a|s) = softmax(Q(s)/temperature)
 
+<p>&nbsp;<img src="https://cdn.discordapp.com/attachments/1314182304637128714/1314430143846158357/image.png?ex=6753bdf7&amp;is=67526c77&amp;hm=884573665668d343dd2b01d39e8e3840e8c6879d2274ff54e0aec538558e6828&amp;=" /></p>
+
 
 
 Consider using an algorithm like PPO or A2C instead of pure DQN. These methods naturally produce a policy distribution over actions. You can then add an entropy bonus term:
