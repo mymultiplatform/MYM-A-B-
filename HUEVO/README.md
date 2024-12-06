@@ -6,7 +6,7 @@
 
 
 
- The prediction error of the forward model can serve as an intrinsic reward. If the agent is in a
+ The prediction error of the forward model can serve as an intrinsic reward. If the agent is in a state it hasn’t seen often (hard to predict next state accurately), the prediction error is high, yielding a higher intrinsic reward and thus encouraging the agent to explore that region further.
 
 
 
