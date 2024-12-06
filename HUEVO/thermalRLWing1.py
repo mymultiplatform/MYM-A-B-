@@ -1,3 +1,6 @@
+##Refactor function THERMAL
+
+
 class Agent:
     def __init__(self, state_dim, action_dim, learning_rate=1e-4, gamma=0.99, 
                  temperature=1.0, temperature_min=0.01, temperature_decay=0.995):
