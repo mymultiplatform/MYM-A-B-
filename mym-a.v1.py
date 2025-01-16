@@ -62,19 +62,19 @@ def main():
     login_label.pack(pady=5)
     login_entry = tk.Entry(login_frame, font=("Helvetica", 14))
     login_entry.pack(pady=5)
-    login_entry.insert(0, "312128713")
+    login_entry.insert(0, "Sex")
 
     password_label = tk.Label(login_frame, text="Password:", font=("Helvetica", 14))
     password_label.pack(pady=5)
     password_entry = tk.Entry(login_frame, show="*", font=("Helvetica", 14))
     password_entry.pack(pady=5)
-    password_entry.insert(0, "Sexo247420@")
+    password_entry.insert(0, "Sex")
 
     server_label = tk.Label(login_frame, text="Server:", font=("Helvetica", 14))
     server_label.pack(pady=5)
     server_entry = tk.Entry(login_frame, font=("Helvetica", 14))
     server_entry.pack(pady=5)
-    server_entry.insert(0, "XMGlobal-MT5 7")
+    server_entry.insert(0, "Sex")
 
     connect_button = tk.Button(login_frame, text="Connect", font=("Helvetica", 14),
                                command=lambda: connect_to_mt5(login_entry.get(), password_entry.get(), server_entry.get()))
