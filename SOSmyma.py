@@ -8,9 +8,6 @@ from gym import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import networkx as nx  # For neural network visualization
 
 # ✅ Custom Trading Environment with Multiple Assets
 class TradingEnv(gym.Env):
@@ -23,8 +20,7 @@ class TradingEnv(gym.Env):
         self.symbols = ["ETHUSD", "BTCUSD", "BTCJPY", "DOGEUSD"]  # Updated symbols
         self.num_assets = len(self.symbols)
         
-        self.balance = 10000
-        self.prices = np.ones(self.num_assets) * 50000  # Initialize prices
+        self.balance = 10000  # Starting balance
         self.positions = np.zeros(self.num_assets)  # Position holdings
         
         # Define action and observation space
@@ -53,24 +49,70 @@ class TradingEnv(gym.Env):
             price = tick.ask if action == 0 else tick.bid
 
             if action == 0:  # Buy
-                self.positions[i] += 1
-                self.balance -= price
+                if self.balance >= price:  # Ensure sufficient balance
+                    # Place a buy order in MT5
+                    order = {
+                        "action": mt5.TRADE_ACTION_DEAL,
+                        "symbol": symbol,
+                        "volume": 0.1,  # Trade size
+                        "type": mt5.ORDER_TYPE_BUY,
+                        "price": price,
+                        "deviation": 10,
+                        "magic": 234000,
+                        "comment": "Python script open",
+                        "type_time": mt5.ORDER_TIME_GTC,
+                        "type_filling": mt5.ORDER_FILLING_IOC,
+                    }
+                    result = mt5.order_send(order)
+                    if result.retcode != mt5.TRADE_RETCODE_DONE:
+                        print(f"Failed to place buy order for {symbol}: {result.comment}")
+                    else:
+                        self.positions[i] += 1
+                        self.balance -= price
+                        reward += 1  # Reward for buying
+                else:
+                    reward -= 1  # Penalize for insufficient balance
+
             elif action == 1:  # Sell
                 if self.positions[i] > 0:
-                    self.positions[i] -= 1
-                    self.balance += price
+                    # Place a sell order in MT5
+                    order = {
+                        "action": mt5.TRADE_ACTION_DEAL,
+                        "symbol": symbol,
+                        "volume": 0.1,  # Trade size
+                        "type": mt5.ORDER_TYPE_SELL,
+                        "price": price,
+                        "deviation": 10,
+                        "magic": 234000,
+                        "comment": "Python script close",
+                        "type_time": mt5.ORDER_TIME_GTC,
+                        "type_filling": mt5.ORDER_FILLING_IOC,
+                    }
+                    result = mt5.order_send(order)
+                    if result.retcode != mt5.TRADE_RETCODE_DONE:
+                        print(f"Failed to place sell order for {symbol}: {result.comment}")
+                    else:
+                        self.positions[i] -= 1
+                        self.balance += price
+                        reward += 1  # Reward for selling
+                else:
+                    reward -= 1  # Penalize for selling without position
 
-        obs = np.array(np.concatenate((self.prices, self.positions, [self.balance])), dtype=np.float32)
+        # Check if balance is negative
+        if self.balance <= 0:
+            terminated = True
+            reward -= 10  # Penalize heavily for losing all balance
+
+        obs = np.array(np.concatenate(([mt5.symbol_info_tick(symbol).ask for symbol in self.symbols], self.positions, [self.balance])), dtype=np.float32)
         return obs, reward, terminated, truncated, {}  # Return 5 values
 
     def reset(self, seed=None, options=None):
         """Reset the environment for a new episode"""
         super().reset(seed=seed)
         self.balance = 10000
-        self.prices = np.ones(self.num_assets) * 50000
         self.positions = np.zeros(self.num_assets)
 
-        obs = np.array(np.concatenate((self.prices, self.positions, [self.balance])), dtype=np.float32)
+        obs = np.array(np.concatenate(([mt5.symbol_info_tick(symbol).ask for symbol in self.symbols], self.positions, [self.balance])), dtype=np.float32)
         info = {}  # Add an empty info dictionary
         return obs, info  # Return both observation and info
 
@@ -86,17 +128,7 @@ def train_model():
     model.learn(total_timesteps=10000)
     return model, env
 
-# ✅ Trade Execution Loop
-def trade_loop(model, env):
-    """Live trading loop"""
-    while True:
-        obs = env.reset()
-        action, _ = model.predict(obs)
-        obs, reward, terminated, truncated, _ = env.step(action[0])
-        print(f"Step result: {obs}, {reward}")
-        time.sleep(1)
-
-# ✅ Tkinter UI with Neural Network Visualization
+# ✅ Tkinter UI
 class TradingApp:
     def __init__(self, root):
         self.root = root
@@ -123,9 +155,6 @@ class TradingApp:
 
         self.trade_button = tk.Button(root, text="Run Trading Bot", command=self.run_trading)
         self.trade_button.pack()
-
-        self.plot_area = tk.Frame(root)
-        self.plot_area.pack()
 
         # ✅ Initialize the environment and model
         self.env = DummyVecEnv([lambda: TradingEnv()])
@@ -156,39 +185,7 @@ class TradingApp:
             obs, reward, terminated, truncated, _ = self.env.envs[0].step(action[0])
             print(f"Step result: {obs}, {reward}")
             self.model.learn(total_timesteps=1)  # Online learning
-            self.visualize_nn()
             time.sleep(5)
-
-    def visualize_nn(self):
-        """Visualize the Neural Network structure"""
-        fig, ax = plt.subplots(figsize=(5, 3))
-        G = nx.DiGraph()
-
-        layers = [(self.env.envs[0].num_assets * 2) + 1, 10, 3]  # Example: Input, Hidden, Output
-        positions = {}
-        node_id = 0
-        y_offset = 0.5
-
-        for layer_idx, num_nodes in enumerate(layers):
-            x_positions = np.linspace(-1, 1, num_nodes)
-            for x in x_positions:
-                G.add_node(node_id, layer=layer_idx)
-                positions[node_id] = (x, -layer_idx * y_offset)
-                node_id += 1
-
-        for src in range(layers[0]):  
-            for dst in range(layers[0], layers[0] + layers[1]):  
-                G.add_edge(src, dst)
-        for src in range(layers[0], layers[0] + layers[1]):  
-            for dst in range(layers[0] + layers[1], node_id):  
-                G.add_edge(src, dst)
-
-        nx.draw(G, positions, with_labels=False, node_size=300, node_color="blue", edge_color="gray", ax=ax)
-        ax.set_title("Neural Network Structure")
-
-        canvas = FigureCanvasTkAgg(fig, master=self.plot_area)
-        canvas.draw()
-        canvas.get_tk_widget().pack()
 
 if __name__ == "__main__":
     root = tk.Tk()
