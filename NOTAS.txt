@@ -1,0 +1,73 @@
+ 
+
+Start.
+
+
+Debug Start.
+
+
+
+
+
+Log in. 
+
+
+
+
+
+
+Debug execution all symbols. test for all.
+
+
+debug remote stop loss & take profit. 
+
+debug SYMBOLS WORK.
+
+
+debug multiple symbols executions in parallel. 
+
+Since all debug correctly strat the Evolution of the ONLINE REINFORCEMENT LEARNING ML.
+
+
+DYNAMIC WEIGTHS
+
+- Is dynamic because the "stop loss & take profit" is not predetermined.
+
+- Is dynamic because the number of executions is only 20 per SYMBOL. 
+
+- Is dynamic because the the "Hold and Scalp" methods are baced on the RL and not predetermined.
+
+- Is dynamic becasue the "Sell and Buy" options are based on the RL.
+
+- Is dynamic becasue the Set buy limit and Set sell limit are based on the RL.
+
+- Is dynamic becasue the "Lot Size" is based on the RL.
+
+- Is dynamic becasue the "Balance" affects the RL weight.
+
+
+
+PUNISH AND REWARD HERARCHY
+
+
+
+Punish: 
+
+- Punish if the trades hits Stop loss. 20% important
+
+- Punish if the overall Balance gets reduced. 35% important 
+
+
+Reward:
+
+- Reward if the trade hits take profit. 21% important
+
+- Reward if the trade makes the Balance grow. 36% important
+
+- Reward ( the more the profit the more the reward ). 37% importnat 
+
+
+
+
+
+
